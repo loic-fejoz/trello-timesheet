@@ -16,6 +16,7 @@
 # Trello token configuration
 key.txt
 token.txt
+board.txt
 
 # Binaries
 cmd/trello2csv/trello2csv
