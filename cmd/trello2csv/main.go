@@ -4,7 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"time"
+	"sort"
+	"strings"
 
 	"github.com/adlio/trello"
 )
@@ -19,14 +20,23 @@ type TrelloCard struct {
 	durationInDay float64
 }
 
+type cardByTime []*TrelloCard
+
+func (a cardByTime) Len() int      { return len(a) }
+func (a cardByTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a cardByTime) Less(i, j int) bool {
+	return a[i].card.Due.Before(*a[j].card.Due) && !a[i].card.Due.Equal(*a[j].card.Due)
+}
+
 func (aTaskCard TrelloCard) printAsCSV() {
-	fmt.Print(aTaskCard.card.Name, ", ")
-	fmt.Print(aTaskCard.card.Due.String(), ", ")
+	d := aTaskCard.card.Due
+	fmt.Printf("\"%d-%02d-%02d\", ", d.Year(), d.Month(), d.Day())
+	fmt.Printf("%.2f", aTaskCard.durationInDay)
+	fmt.Print(", \"", aTaskCard.card.Name, "\", \"")
 	for _, label := range aTaskCard.card.Labels {
-		fmt.Print("#", label.Name, ", ")
+		fmt.Print("#", strings.Replace(label.Name, " ", "_", -1), ", ")
 	}
-	fmt.Print(aTaskCard.durationInDay)
-	fmt.Println()
+	fmt.Println("\"")
 }
 
 type trelloList []*trello.Card
@@ -40,7 +50,8 @@ func (cards trelloList) printAsCSV() {
 func groupByDate(cards []*trello.Card) map[string][]TrelloCard {
 	mapAnnotatedCards := map[string][]TrelloCard{}
 	for _, aTaskCard := range cards {
-		date := aTaskCard.Due.Format(time.RFC822)
+		d := aTaskCard.Due
+		date := fmt.Sprintf("\"%d-%02d-%02d\", ", d.Year(), d.Month(), d.Day())
 		aList := mapAnnotatedCards[date]
 		if aList == nil {
 			aList = []TrelloCard{}
@@ -51,20 +62,18 @@ func groupByDate(cards []*trello.Card) map[string][]TrelloCard {
 	return mapAnnotatedCards
 }
 
-func computeDurations(mappedCards map[string][]TrelloCard) map[string][]TrelloCard {
+func computeDurations(mappedCards map[string][]TrelloCard) {
 	for t, list := range mappedCards {
-		list = computeDuration(list)
+		computeDuration(list)
 		mappedCards[t] = list
 	}
-	return mappedCards
 }
 
-func computeDuration(dailyCards []TrelloCard) (result []TrelloCard) {
+func computeDuration(dailyCards []TrelloCard) {
 	nbTaskThatDay := float64(len(dailyCards))
 	for i := range dailyCards {
 		dailyCards[i].durationInDay = 1.0 / nbTaskThatDay
 	}
-	return dailyCards
 }
 
 func main() {
@@ -98,23 +107,17 @@ func main() {
 
 	annotatedCards := groupByDate(cards)
 	computeDurations(annotatedCards)
-	durationPerProject := map[string]float64{}
-	for _, aList := range annotatedCards {
-	CardLoop:
-		for _, aTaskCard := range aList {
-			for _, label := range aTaskCard.card.Labels {
-				durationPerProject[label.Name] += aTaskCard.durationInDay
-				continue CardLoop
-			}
+
+	keys := make([]string, 0, len(annotatedCards))
+	for k := range annotatedCards {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, aDay := range keys {
+		cardsWithDuration := annotatedCards[aDay]
+		for _, aCardWithDuration := range cardsWithDuration {
+			aCardWithDuration.printAsCSV()
 		}
 	}
-
-	totalDays := 0.0
-	for projectName, durationInDay := range durationPerProject {
-		fmt.Print(projectName, "\t", durationInDay, "\n")
-		totalDays += durationInDay
-	}
-	fmt.Print("---------------------------\n")
-	fmt.Print("Total\t", totalDays, "\n")
-
 }
