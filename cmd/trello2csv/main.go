@@ -30,9 +30,9 @@ func (a cardByTime) Less(i, j int) bool {
 
 func (aTaskCard TrelloCard) printAsCSV() {
 	d := aTaskCard.card.Due
-	fmt.Printf("\"%d-%02d-%02d\", ", d.Year(), d.Month(), d.Day())
-	fmt.Printf("%.2f", aTaskCard.durationInDay)
-	fmt.Print(", \"", aTaskCard.card.Name, "\", \"")
+	fmt.Printf("\"%d-%02d-%02d\",", d.Year(), d.Month(), d.Day())
+	fmt.Printf("\"%.2f\",", aTaskCard.durationInDay)
+	fmt.Print("\"", aTaskCard.card.Name, "\",\"")
 	for _, label := range aTaskCard.card.Labels {
 		fmt.Print("#", strings.Replace(label.Name, " ", "_", -1), ", ")
 	}
