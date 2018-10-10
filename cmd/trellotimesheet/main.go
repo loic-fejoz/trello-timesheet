@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/adlio/trello"
@@ -40,13 +41,17 @@ func (cards trelloList) printAsCSV() {
 func groupByDate(cards []*trello.Card) map[string][]TrelloCard {
 	mapAnnotatedCards := map[string][]TrelloCard{}
 	for _, aTaskCard := range cards {
-		date := aTaskCard.Due.Format(time.RFC822)
-		aList := mapAnnotatedCards[date]
-		if aList == nil {
-			aList = []TrelloCard{}
+		if aTaskCard.Due == nil {
+			fmt.Fprintf(os.Stderr, aTaskCard.Name+" shall have a due date\n")
+		} else {
+			date := aTaskCard.Due.Format(time.RFC822)
+			aList := mapAnnotatedCards[date]
+			if aList == nil {
+				aList = []TrelloCard{}
+			}
+			aList = append(aList, TrelloCard{aTaskCard, 0.0})
+			mapAnnotatedCards[date] = aList
 		}
-		aList = append(aList, TrelloCard{aTaskCard, 0.0})
-		mapAnnotatedCards[date] = aList
 	}
 	return mapAnnotatedCards
 }
